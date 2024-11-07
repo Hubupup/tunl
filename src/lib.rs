@@ -70,7 +70,7 @@ async fn check_password(req: &Request, password: &str) -> Result<Option<Response
         </html>
     "#;
 
-    Ok(Some(Response::from_html(html)))
+    Ok(Some(Response::from_html(html)?))
 }
 
 async fn tunnel(config: Arc<Config>, context: RequestContext) -> Result<Response> {
