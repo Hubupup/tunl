@@ -19,11 +19,20 @@ lazy_static::lazy_static! {
 }
 
 #[event(fetch)]
-async fn main(req: Request, _: Env, _: Context) -> Result<Response> {
+async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
+    // 获取存储在环境变量中的密码
+    let password = env.var("PASSWORD")?.to_string();
+
+    // 检查请求路径
     match req.path().as_str() {
         "/link" => link(req, CONFIG.clone()),
         path => match CONFIG.dispatch_inbound(path) {
             Some(inbound) => {
+                // 在处理请求之前验证密码
+                if let Some(response) = check_password(&req, &password).await? {
+                    return Ok(response);
+                }
+
                 let context = RequestContext {
                     inbound,
                     request: Some(req),
@@ -34,6 +43,34 @@ async fn main(req: Request, _: Env, _: Context) -> Result<Response> {
             None => Response::empty(),
         },
     }
+}
+
+async fn check_password(req: &Request, password: &str) -> Result<Option<Response>> {
+    // 检查请求中是否包含密码
+    if let Some(query) = req.url()?.query() {
+        let params: Vec<&str> = query.split('&').collect();
+        for param in params {
+            let pair: Vec<&str> = param.split('=').collect();
+            if pair.len() == 2 && pair[0] == "password" && pair[1] == password {
+                return Ok(None); // 密码正确，继续处理请求
+            }
+        }
+    }
+
+    // 如果密码不正确或未提供，返回一个要求输入密码的响应
+    let html = r#"
+        <html>
+            <body>
+                <form action="" method="get">
+                    <label for="password">Enter Password:</label>
+                    <input type="password" id="password" name="password">
+                    <input type="submit" value="Submit">
+                </form>
+            </body>
+        </html>
+    "#;
+
+    Ok(Some(Response::from_html(html)))
 }
 
 async fn tunnel(config: Arc<Config>, context: RequestContext) -> Result<Response> {
