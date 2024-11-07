@@ -21,7 +21,7 @@ lazy_static::lazy_static! {
 #[event(fetch)]
 async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
     // 获取存储在环境变量中的密码
-    let password = env.var("PASSWORD")?.to_string();
+    let password = env.var("v2raypasswork")?.to_string();
 
     // 检查请求路径
     match req.path().as_str() {
